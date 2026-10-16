@@ -72,4 +72,4 @@ GC_HEAP_VERIFIED
 2. Put your completed `gc_heap.py` and required prior-stage work in a repository under your own GitHub account. Submit that repository's URL and full commit SHA in Blackboard Ultra; do not upload separate code files.
 3. Submit terminal output/screenshot showing the **`GC_HEAP_VERIFIED`** Success Token from `python test_gc.py` in Blackboard Ultra.
 
-The instructor starter is an upstream source. Do not push student work to the instructor repository. See `README.md` for the template and safe direct-clone workflows. The due date is October 26, 2026; use the Blackboard assignment for the verified deadline time.
+The instructor starter is the public template at `https://github.com/cwillpinto/cs379-pa09-garbage-collector`. It is an upstream source. Do not push student work to the instructor repository. See `README.md` for the template and safe direct-clone workflows. The due date is October 26, 2026; use the Blackboard assignment for the verified deadline time.
