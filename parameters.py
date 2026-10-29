@@ -6,16 +6,10 @@ Cell, evaluate(), and FunctionDecl are already provided -- do not
 modify them. See the assignment, Part B, for the
 full requirements.
 
-Design note (filling a gap in the assignment spec): Requirement 1
-says value-result mode must write the callee's final local value back
-to the caller "only when the function returns" -- but bind_parameters
-runs once, at CALL time, before the body executes. One function alone
-can't do both "bind at call time" and "write back at return time," so
-this starter adds a second function, commit_value_result, called
-AFTER the simulated function body finishes. bind_parameters sets up
-bookkeeping for value-result parameters (a list of (param_name,
-caller_var_name) pairs), and commit_value_result uses it to do the
-delayed write-back.
+Value-result binding has two steps: bind_parameters runs at call time
+and records each caller destination; commit_value_result runs after
+the simulated body and copies the final local values back in parameter
+order. The handout specifies both steps.
 
 Design note 2: variables are stored as Cell objects (a mutable box),
 not raw values, specifically so reference-mode parameters can share
@@ -24,7 +18,9 @@ Questions 1-2, for why "bind directly to the caller's slot" requires
 this instead of just copying a plain value.
 """
 
+
 from typing import Any, List, Tuple
+from frames import ActivationRecord
 
 from parser import BinOp, Number, Variable
 from symtable import Environment
@@ -82,7 +78,26 @@ def bind_parameters(param_specs: List[Tuple[str, str]], arg_nodes: list, caller_
     an attribute on callee_record such as callee_record.pending_writeback).
     """
     # TODO
-    raise NotImplementedError
+    value_result_destinations = []
+
+    for (param_name, mode), arg_node in zip(param_specs,arg_nodes):
+        if mode =="value":
+            val = evaluate(arg_node, caller_env)
+            callee_record.locals_env.define(param_name, Cell(val))
+        elif mode == "reference":
+            var_name = arg_node.name if hasattr(arg_node, 'name') else arg_node
+            caller_cell = caller_env.resolve(var_name)
+            callee_record.locals_env.define(param_name, caller_cell)
+        elif mode == "value-result":
+            val = evaluate(arg_node, caller_env)
+            local_cell = Cell(val)
+            callee_record.locals_env.define(param_name, local_cell)
+
+            var_name = arg_node.name if hasattr(arg_node,'name') else arg_node
+            caller_cell = caller_env.resolve(var_name)
+            value_result_destinations.append((local_cell, caller_cell))
+    callee_record.value_result_destinations = value_result_destinations
+    #raise NotImplementedError
 
 
 def commit_value_result(callee_record, caller_env: Environment) -> None:
@@ -93,13 +108,17 @@ def commit_value_result(callee_record, caller_env: Environment) -> None:
     has finished running).
     """
     # TODO
-    raise NotImplementedError
+    if hasattr(callee_record, 'value_result_destinations'):
+        for local_cell, caller_cell in callee_record.value_result_destinations:
+            caller_cell.value = local_cell.value
+    #raise NotImplementedError
 
 
 class Closure:
     def __init__(self, declaration: FunctionDecl, defining_env: Environment) -> None:
         # TODO
-        raise NotImplementedError
+        self.declaration = declaration
+        self.defining_env = defining_env # Static Link
 
     def call(self, args: list, caller_env: Environment):
         """
@@ -110,4 +129,28 @@ class Closure:
         that new environment and return the result.
         """
         # TODO
-        raise NotImplementedError
+        callee_env = Environment(parent=self.defining_env)
+        callee_record = ActivationRecord(
+            function_name=getattr(self.declaration, 'name', 'anonymous'),
+            parameters=self.declaration.params,
+            locals_env=callee_env,
+            return_address="",
+            static_link=self.defining_env,
+            dynamic_link=None
+        )
+        
+
+        for param_spec, arg_val in zip(self.declaration.params, args):
+            
+            if isinstance(param_spec, (list,tuple)):
+                param_name = param_spec[0]
+                mode = param_spec[1] if len(param_spec) > 1 else "value"
+            else:
+                param_name = param_spec
+                mode = "value"
+                
+            callee_env.define(param_name, Cell(arg_val))
+
+        result = evaluate(self.declaration.body,callee_record)
+        return result
+        #raise NotImplementedError

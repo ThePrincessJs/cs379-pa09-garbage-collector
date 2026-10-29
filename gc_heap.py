@@ -34,16 +34,28 @@ class HeapNode:
 class GCHeap:
     def __init__(self) -> None:
         # TODO: internal storage -- e.g. {handle: (obj, refcount)} -- and a handle counter.
-        raise NotImplementedError
+        self.objects = {}
+        self.ref_counts = {}
+        self.next_handle = 1
+        
+        #raise NotImplementedError
 
     def allocate(self, obj: Any) -> int:
         """Store obj, return a new handle. Initial refcount is 1 (the creating reference)."""
         # TODO
-        raise NotImplementedError
+        handle = self.next_handle
+        self.next_handle += 1
+        self.objects[handle] = obj
+        self.ref_counts[handle] = 1
+        return handle
+        #raise NotImplementedError
 
     def incref(self, handle: int) -> None:
         # TODO
-        raise NotImplementedError
+        if handle in self.objects:
+            self.ref_counts[handle] += 1
+
+        #raise NotImplementedError
 
     def decref(self, handle: int) -> None:
         """
@@ -52,13 +64,47 @@ class GCHeap:
         get_child_handles() (if it has that method), recursively.
         """
         # TODO
-        raise NotImplementedError
+        if handle not in self.objects:
+            return
+
+        self.ref_counts[handle] -= 1
+
+        if self.ref_counts[handle] <= 0:
+            self._free(handle)        
+        #raise NotImplementedError
+
+
+    def _free(self, handle: int) -> None:
+        obj = self.objects.pop(handle,None)
+        self.ref_counts.pop(handle, None)
+
+        if obj is not None:
+            child_handles = self._extract_child(obj)
+            for child_handle in child_handles:
+                self.decref(child_handle)
+
+    def _extract_child(self, obj) -> list:
+        handles = []
+        if hasattr(obj, 'fields') and isinstance(obj.fields, dict):
+            for val in obj.fields.values():
+                if isinstance(val, int) and val in self.objects:
+                    handles.append(val)
+        elif hasattr(obj, '__dict__'):
+            for val in obj.__dict__.values():
+                if isinstance(val, int) and val in self.objects:
+                    handles.append(val)
+        return handles
+
 
     def is_alive(self, handle: int) -> bool:
         # TODO
-        raise NotImplementedError
+        return handle in self.objects
+
+
+        #raise NotImplementedError
 
     def live_count(self) -> int:
         """Number of currently-alive (refcount > 0) handles."""
         # TODO
-        raise NotImplementedError
+        return len(self.objects)
+        #raise NotImplementedError

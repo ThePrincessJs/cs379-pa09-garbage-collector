@@ -26,7 +26,10 @@ class Environment:
         shadowing a parent name is allowed).
         """
         # TODO
-        raise NotImplementedError
+        if name in self._names:
+            orig_line = self._names[name]
+            raise SemanticError(f"Duplicate Declaration! Name '{name}' on line {line} is already defined at line {orig_line}")
+        self._names[name] = line
 
     def resolve(self, name: str) -> int:
         """
@@ -34,8 +37,32 @@ class Environment:
         Return the declaration line, or raise SemanticError if not
         found anywhere in the chain.
         """
-        # TODO
-        raise NotImplementedError
+        # Check and make sure that the name was already defined in this scope.
+        if name in self._names:
+            return self._names[name]
+        if self.parent is not None:
+            return self.parent.resolve(name)
+        raise SemanticError(f"Name '{name}' not defined, Try adding a let statement for '{name}' before using it. God Bless you! ")
+
+def check_expression(expr, env: Environment) -> None:
+    if expr is None:
+        return
+
+    expr_type = type(expr).__name__
+
+    if expr_type == "Variable" or hasattr(expr, "name"):
+        # Check if the variable is defined in the environment
+        try:
+            env.resolve(expr.name)
+        except SemanticError as e:
+            line = getattr(expr, "line", "unknown")
+            raise SemanticError(f"Use of undefined variable '{expr.name}' at line {line}") from e
+    elif expr_type == "BinOp":
+        # Recursively check the left and right expressions, poinT!
+        check_expression(expr.left, env)
+        check_expression(expr.right, env)
+    elif expr_type == "UnaryOp":
+        check_expression(expr.operand, env)
 
 
 def check_program(ast: Program) -> Environment:
@@ -47,5 +74,20 @@ def check_program(ast: Program) -> Environment:
     every Variable in its expr. Errors must surface at the first
     offending statement, not be collected and reported together.
     """
-    # TODO
-    raise NotImplementedError
+    # Create a new environment for the program
+    env = Environment()
+    for stmt in ast.statements:
+        if isinstance(stmt, Declaration):
+            # Check the expression for variable usage
+            check_expression(stmt.expr, env)
+            # Define the new variable in the current environment
+            env.define(stmt.name, stmt.line)
+        elif isinstance(stmt, Assignment):
+            try:
+                env.resolve(stmt.name)
+            except SemanticError as e:
+                raise SemanticError(f"Assignment to undefined variable '{stmt.name}' at line {stmt.line}, Please define the variable first next time :)") from e
+            # Check the expression for variable usage
+            check_expression(stmt.expr, env)
+        
+    return env

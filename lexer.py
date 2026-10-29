@@ -32,6 +32,15 @@ class LexError(Exception):
 
 # TODO: build your master regex here, e.g.:
 # _MASTER_RE = re.compile(r"(?P<NUMBER>\d+)|(?P<IDENT>[A-Za-z_]\w*)|...")
+MASTER_PATTERN = re.compile(
+
+r"(?P<LET>\blet\b)" #Very important to check for let first, otherwise it will be recognized as an identifier
+r"(?P<NUMBER>[0-9]+(\.[0-9]+)?)"
+r"|(?P<IDENT>[a-zA-Z_][a-zA-Z0-9_]*)"
+r"|(?P<PLUS>\+)|(?P<MINUS>-)|(?P<STAR>\*)|(?P<SLASH>/)"
+r"|(?P<LPAREN>\()|(?P<RPAREN>\))|(?P<ASSIGN>=)|(?P<SEMI>;)"
+r"|(?P<COMMENT>#.*)|(?P<NEWLINE>\n)|(?P<WHITESPACE>[ \t]+)|(?P<EOF>$ )"
+)
 
 
 def tokenize(source: str) -> List[Token]:
@@ -44,4 +53,42 @@ def tokenize(source: str) -> List[Token]:
     offending character and line) on unrecognized input.
     """
     # TODO
-    raise NotImplementedError
+    tokens_specifications = [
+        ("LET", r"let"), #Check Let first! (Cost me 3 hours of extra work because I forgot to check for let first, and it was being recognized as an identifier)
+        ("IDENT", r"[A-Za-z_][A-Za-z0-9_]*"),
+        ("NUMBER", r"\d+"),
+        ("PLUS", r"\+"),
+        ("MINUS", r"-"),
+        ("STAR", r"\*"),
+        ("SLASH", r"/"),
+        ("LPAREN", r"\("),
+        ("RPAREN", r"\)"),
+        ("ASSIGN", r"="),
+        ("SEMI", r";"),
+        ("COMMENT", r"#.*"),
+        ("WHITESPACE", r"[ \t]+"),
+        ("NEWLINE", r"\n"),
+        ("SKIP", r"[ \t]+"),
+        ("MISMATCH", r"."),  # Any other character
+        ("EOF", r"$"), # End of File
+    ]
+    token_regex = "|".join(f"(?P<{name}>{pattern})" for name, pattern in tokens_specifications)
+    line_num = 1
+    tokens = []
+
+    for match in re.finditer(token_regex, source):
+        kind = match.lastgroup
+        value = match.group()
+
+        if kind == "NEWLINE":
+            line_num += 1
+        elif kind == "WHITESPACE" or kind == "COMMENT":
+            continue
+        elif kind == "MISMATCH":
+            raise LexError(f"Unexpected character {value!r} on line {line_num}")
+        else:
+            tokens.append(Token(kind, value, line_num))
+
+    tokens.append(Token("EOF", "", line_num))
+    return tokens
+    #raise NotImplementedError

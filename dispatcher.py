@@ -34,7 +34,9 @@ class VTable:
     def __init__(self, entries: Dict[str, Callable], owning_class_name: str = "?") -> None:
         """`owning_class_name` is just for error messages -- store it alongside entries."""
         # TODO: store entries and owning_class_name.
-        raise NotImplementedError
+        self.owning_class_name = owning_class_name
+        self.entries = entries
+        #raise NotImplementedError
 
     def resolve(self, method_name: str) -> Callable:
         """
@@ -43,7 +45,10 @@ class VTable:
         owning class and the missing method if it doesn't exist.
         """
         # TODO
-        raise NotImplementedError
+        if method_name in self.entries:
+            return self.entries[method_name]
+        raise AttributeError(f"Class '{self.owning_class_name}' has no method called: '{method_name}'.")
+        #raise NotImplementedError
 
 
 def build_vtable(class_node: ClassDecl, parent_vtable: Optional[VTable] = None) -> VTable:
@@ -55,13 +60,23 @@ def build_vtable(class_node: ClassDecl, parent_vtable: Optional[VTable] = None) 
     Pass class_node.name as the new VTable's owning_class_name.
     """
     # TODO
-    raise NotImplementedError
+    entries = {}
+    if parent_vtable is not None:
+        entries.update(parent_vtable.entries)
+
+    if class_node.methods:
+        entries.update(class_node.methods)
+
+    return VTable(entries=entries, owning_class_name =class_node.name)
+    #raise NotImplementedError
 
 
 class USIObject:
     def __init__(self, class_descriptor: VTable, fields: dict) -> None:
         # TODO: store both. class_descriptor is this object's ACTUAL runtime VTable.
-        raise NotImplementedError
+        self.class_descriptor = class_descriptor
+        self.fields = fields
+        #raise NotImplementedError
 
 
 def dispatch(obj: USIObject, method_name: str, args: list, caller_env) -> object:
@@ -71,4 +86,6 @@ def dispatch(obj: USIObject, method_name: str, args: list, caller_env) -> object
     receiver: resolved_method(obj, *args).
     """
     # TODO
-    raise NotImplementedError
+    method = obj.class_descriptor.resolve(method_name)
+    return method(obj, *args)
+    #raise NotImplementedError
